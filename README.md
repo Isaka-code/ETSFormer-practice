@@ -1,0 +1,2 @@
+# ETSFormer-practice
+最先端時系列データ分析モデルETSformerを使ってみる
