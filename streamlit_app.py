@@ -27,6 +27,7 @@ st.write("11年を学習に使い、残り1年を予測します。")
 df = pd.read_csv("./data/AirPassengers.csv", delimiter=",")
 # 144 = 12年×12ヶ月。11年を学習に使い、残り1年を予測します。 
 total_num = len(df) # 144
+# スライダーで学習データの件数を選べるようにしている
 train_num = st.slider(label='学習データの件数',
                     min_value=0,
                     max_value=144,
@@ -36,8 +37,6 @@ train_num = st.slider(label='学習データの件数',
 st.write(f'Selected: {train_num}')
 val_num = total_num - train_num # 12
 train_df, val_df = df.loc[:train_num-1, :], df.loc[train_num:, :]
-print(len(train_df))
-print(len(val_df))
 train, val = torch.tensor(train_df["#Passengers"].values, dtype=torch.float), torch.tensor(val_df["#Passengers"].values, dtype=torch.float)
 train, val = torch.reshape(train, (1, -1, 1)), torch.reshape(val, (1, -1, 1))
 

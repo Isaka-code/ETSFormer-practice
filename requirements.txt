@@ -1,2 +1,5 @@
+matplotlib
+pandas
 streamlit
+torch
 etsformer-pytorch
