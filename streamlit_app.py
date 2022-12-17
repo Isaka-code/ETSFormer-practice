@@ -1,63 +1,48 @@
-import streamlit as st
-
-from darts import TimeSeries
-from darts.models import ExponentialSmoothing, ARIMA, AutoARIMA, BATS, Theta
 
 from sklearn.model_selection import train_test_split
 import pandas as pd
 import matplotlib.pyplot as plt
+import streamlit as st
+import torch
+from etsformer_pytorch import ETSFormer
 
-st.title('Dartsで時系列予測')
+def setup_ETSformer():
+    model = ETSFormer(
+        time_features = 1,
+        model_dim = 512,                # in paper they use 512
+        embed_kernel_size = 3,          # kernel size for 1d conv for input embedding
+        layers = 2,                     # number of encoder and corresponding decoder layers
+        heads = 8,                      # number of exponential smoothing attention heads
+        K = 1,                          # num frequencies with highest amplitude to keep (attend to)
+        dropout = 0.2                   # dropout (in paper they did 0.2)
+    )
+    return model
+# ETSformerモデルを読み込み
+model = setup_ETSformer()
 
-# Dartsの処理
-# モデルの選択
-model_select = st.radio(
-    "使用するモデルを選んでください",
-    ("ExponentialSmoothing", "ARIMA", "AutoARIMA", "BATS", "Theta"))
-if model_select == "ExponentialSmoothing":
-    model = ExponentialSmoothing()
-    st.write("確率論的モデルです。サンプリング回数はどうしますか？")
-    num_samples = st.number_input("num_samples", value=1)
+# streamlitにメッセージ表示
+st.title('ETSformerで時系列予測')
+st.write("AirPassengers.csv（12年×12ヶ月）を使用します。11年を学習に使い、残り1年を予測します。")
+st.write("AirPassengers.csvは、下記の外部サイトよりダウンロードが可能です。")
+st.write("https://www.analyticsvidhya.com/wp-content/uploads/2016/02/AirPassengers.csv")
 
-elif model_select == "ARIMA":
-    model = ARIMA()
-    st.write("確率論的モデルです。サンプリング回数はどうしますか？")
-    num_samples = st.number_input("num_samples", value=1)
+# 時系列データ読み込み
+df = pd.read_csv("./data/AirPassengers.csv", delimiter=",")
+# 144 = 12年×12ヶ月。11年を学習に使い、残り1年を予測します。 
+train_df, val_df = train_test_split(df, train_size=132/144, shuffle=False)
+train, val = torch.tensor(train_df["#Passengers"].values, dtype=torch.float), torch.tensor(val_df["#Passengers"].values, dtype=torch.float)
+train, val = torch.reshape(train, (1, -1, 1)), torch.reshape(val, (1, -1, 1))
 
-elif model_select == "BATS":
-    model = BATS()
-    st.write("確率論的モデルです。サンプリング回数はどうしますか？")
-    num_samples = st.number_input("num_samples", value=1)
-# num_samplesを持たないモデル
-elif model_select == "AutoARIMA":
-    model = AutoARIMA()
-    num_samples = 1
-elif model_select == "Theta":
-    model = Theta()
-    num_samples = 1
+num_steps_forecast = len(val_df)
+pred = model(train, num_steps_forecast = num_steps_forecast) # (1, 32, 4) - (batch, num steps forecast, num time features)
+pred = torch.reshape(pred, (-1,)).detach().numpy()
 
+# 図の描画
+fig, ax = plt.subplots()
 
-# csvをアップロード
-csv = st.file_uploader('Upload a CSV')
+ax.plot(list(range(0,len(train_df))), train_df["#Passengers"].values, label="past")
+ax.plot(list(range(len(train_df),len(df))), pred, label="prediction") #予測値リストのサイズに合うようにrangeの区間を設定。
+plt.grid()
 
-if csv is None:
-    st.write("ファイルをアップロードしてください")
-else:
-    df = pd.read_csv(csv, delimiter=",")
-    train, val = train_test_split(df, shuffle=False)
-    train, val = TimeSeries.from_dataframe(train, 'Month', '#Passengers'), TimeSeries.from_dataframe(val, 'Month', '#Passengers')
-
-    model.fit(train)
-    prediction = model.predict(len(val), num_samples=num_samples)
-
-    low_quantile = st.number_input("low_quantile", value=0.05, format="%f")
-    high_quantile = st.number_input("high_quantile", value=0.95, format="%f")
-
-    # 図の描画
-    fig, axes = plt.subplots()
-    series = TimeSeries.from_dataframe(df, 'Month', '#Passengers')
-    series.plot()
-    prediction.plot(label='forecast', low_quantile=low_quantile, high_quantile=high_quantile)
-    plt.legend()
-    plt.tight_layout()
-    st.pyplot(fig)
+plt.legend()
+st.pyplot(fig)
