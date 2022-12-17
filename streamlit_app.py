@@ -20,8 +20,8 @@ model = setup_ETSformer()
 
 # streamlitにメッセージ表示
 st.title('ETSformerで時系列予測')
-st.markdown("[AirPassengers.csv](https://www.analyticsvidhya.com/wp-content/uploads/2016/02/AirPassengers.csv)（12年×12ヶ月=144件）を使用します。")
-st.write("11年を学習に使い、残り1年を予測します。")
+st.markdown("データ：[AirPassengers.csv](https://www.analyticsvidhya.com/wp-content/uploads/2016/02/AirPassengers.csv)（12年×12ヶ月=144件）を使用します。")
+st.write("自由に学習データの件数を変更できます。デフォルトでは、11年を学習に使い、残り1年を予測します。")
 
 # 時系列データ読み込み
 df = pd.read_csv("./data/AirPassengers.csv", delimiter=",")
